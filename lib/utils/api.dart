@@ -4,11 +4,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class CredentialsStore {
+const USER_AGENT =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36";
+
+class CredentialProvider {
   final storage = new FlutterSecureStorage();
 
-  Future<dynamic> getPass() async {
+  Future<String?> getPass() async {
     final pass = await storage.read(key: 'OCS_PASS');
     return pass;
   }
@@ -19,7 +23,7 @@ class CredentialsStore {
     await storage.write(key: 'OCS_PASS', value: hash.toString());
   }
 
-  Future<dynamic> getUser() async {
+  Future<String?> getUser() async {
     final user = await storage.read(key: "OCS_USER");
     return user;
   }
@@ -28,7 +32,7 @@ class CredentialsStore {
     await storage.write(key: 'OCS_USER', value: user);
   }
 
-  Future<dynamic> getJWT() async {
+  Future<String?> getJWT() async {
     final jwt = await storage.read(key: "OCS_JWT");
     return jwt;
   }
@@ -45,11 +49,7 @@ class CredentialsStore {
 
     final response = await http.get(
         Uri.https("ocs.iitd.ac.in", "/api/student/personal-info"),
-        headers: {
-          "Authorization": "Bearer $jwt",
-          "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
-        });
+        headers: {"Authorization": "Bearer $jwt", "User-Agent": USER_AGENT});
 
     if (response.statusCode == 200) return true;
     return false;
@@ -61,11 +61,8 @@ class CredentialsStore {
     final pass = await getPass() ?? "";
     if (pass == "") return false;
 
-    final captcha =
-        await http.get(Uri.https("ocs.iitd.ac.in", "/api/captcha"), headers: {
-      "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
-    });
+    final captcha = await http.get(Uri.https("ocs.iitd.ac.in", "/api/captcha"),
+        headers: {"User-Agent": USER_AGENT});
     if (captcha.statusCode != 200) {
       print("CAPTCHA Not loaded???");
       return false;
@@ -97,8 +94,7 @@ class CredentialsStore {
         body: jsonEncode(obj),
         headers: {
           "Content-Type": "application/json",
-          "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+          "User-Agent": USER_AGENT
         });
 
     if (response.statusCode != 200) {
@@ -115,5 +111,44 @@ class CredentialsStore {
 
   Future<void> logout() async {
     await storage.deleteAll();
+  }
+}
+
+class ApiProvider {
+  final credentialProvider = CredentialProvider();
+  Future<void> save(key, data) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString(key, data);
+  }
+
+  Future<String?> read(key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  Future<List<dynamic>> getNotifications() async {
+    final jwt = await credentialProvider.getJWT() ?? "";
+    if (jwt == "") throw Exception("JWT Not Found");
+
+    final response = await http.get(
+        Uri.https("ocs.iitd.ac.in", "/api/student/all-companies"),
+        headers: {"Authorization": "Bearer $jwt", "User-Agent": USER_AGENT});
+    // print(response.statusCode);
+    // print(response.body);
+    if (response.statusCode != 200) {
+      throw Exception("Notification ERROR");
+    }
+    print(response.body);
+    final List<dynamic> newNotifications = jsonDecode(response.body);
+    final List<dynamic> oldNotifications =
+        jsonDecode(await read("OCS_COMPANIES") ?? "[]");
+
+    await save("OCS_COMPANIES", jsonEncode(newNotifications));
+
+    return newNotifications
+        .where((element) => oldNotifications
+            .where((old) => old["profile_code"] == element["profile_code"])
+            .isEmpty)
+        .toList();
   }
 }
