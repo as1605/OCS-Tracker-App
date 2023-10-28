@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:ocs_tracker/utils/credentials.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final credentials = CredentialsStore();
+
+  await credentials.setUser("<kerberos>");
+  print(await credentials.getUser());
+  await credentials.setPass("<password>");
+  print(await credentials.getPass());
+
+  print(await credentials.checkLogged());
+
+  print(await credentials.login());
+
+  print(await credentials.checkLogged());
   runApp(const MyApp());
 }
 
