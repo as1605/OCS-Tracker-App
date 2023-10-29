@@ -103,7 +103,7 @@ class CredentialProvider {
     }
 
     final jwt = response.body.toString();
-    print({jwt});
+    // print({jwt});
     await setJWT(jwt.substring(1, jwt.length - 1));
 
     return true;
@@ -138,10 +138,13 @@ class ApiProvider {
     if (response.statusCode != 200) {
       throw Exception("Notification ERROR");
     }
-    print(response.body);
+
     final List<dynamic> newNotifications = jsonDecode(response.body);
     final List<dynamic> oldNotifications =
         jsonDecode(await read("OCS_COMPANIES") ?? "[]");
+
+    print(newNotifications.length);
+    print(oldNotifications.length);
 
     await save("OCS_COMPANIES", jsonEncode(newNotifications));
 

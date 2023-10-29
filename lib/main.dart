@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ocs_tracker/screens/launch.dart';
 import 'package:ocs_tracker/utils/api.dart';
+import 'package:ocs_tracker/utils/background.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   // https://stackoverflow.com/a/61312927
@@ -19,6 +20,7 @@ void main() async {
   HttpOverrides.global = MyHttpOverrides();
 
   final api = ApiProvider();
+  initializeService();
   // await api.credentialProvider.logout();
   runApp(MyApp(api: api));
 }
